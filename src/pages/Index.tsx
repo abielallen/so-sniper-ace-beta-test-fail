@@ -1,4 +1,5 @@
-import { useState } from "react";
+
+import React, { useState } from "react";
 import { Header } from "@/components/dashboard/Header";
 import { StatusCard } from "@/components/dashboard/StatusCard";
 import { TokenDetectionTable } from "@/components/dashboard/TokenDetectionTable";
@@ -20,6 +21,7 @@ import {
   LineChart,
   Settings
 } from "lucide-react";
+import { GlowingEffect } from "@/components/ui/glowing-effect";
 
 // Import mock data for UI demo
 import { 
@@ -129,11 +131,19 @@ const Index = () => {
         
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
           <div className="lg:col-span-2">
-            <Card className="dashboard-card">
-              <CardHeader className="pb-2">
+            <Card className="dashboard-card relative overflow-hidden">
+              <GlowingEffect 
+                disabled={false} 
+                glow={true} 
+                variant="purple" 
+                spread={40}
+                proximity={100}
+                borderWidth={3}
+              />
+              <CardHeader className="pb-2 relative">
                 <CardTitle className="text-lg font-medium">Live Token Detections</CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="relative">
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
                   <StatusCard
                     title="Status"
@@ -164,20 +174,52 @@ const Index = () => {
           </div>
           
           <div>
-            <CurrentTrade 
-              activeTrade={activeTrade} 
-              onSellNow={handleSellNow}
-            />
+            <div className="relative">
+              <CurrentTrade 
+                activeTrade={activeTrade} 
+                onSellNow={handleSellNow}
+              />
+              <div className="absolute inset-0 pointer-events-none">
+                <GlowingEffect 
+                  disabled={false} 
+                  glow={true}
+                  variant="default"
+                  spread={40}
+                  proximity={80}
+                  borderWidth={2}
+                />
+              </div>
+            </div>
           </div>
         </div>
         
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-          <div className="lg:col-span-2">
+          <div className="lg:col-span-2 relative">
             <PerformanceStatsDisplay stats={mockPerformanceStats} />
+            <div className="absolute inset-0 pointer-events-none">
+              <GlowingEffect 
+                disabled={false} 
+                glow={true}
+                variant="multi"
+                spread={40}
+                proximity={80}
+                borderWidth={2}
+              />
+            </div>
           </div>
           
-          <div>
+          <div className="relative">
             <BalanceChart data={mockBalanceHistory} />
+            <div className="absolute inset-0 pointer-events-none">
+              <GlowingEffect 
+                disabled={false} 
+                glow={true}
+                variant="purple"
+                spread={40}
+                proximity={80}
+                borderWidth={2}
+              />
+            </div>
           </div>
         </div>
         
@@ -198,8 +240,16 @@ const Index = () => {
             </div>
             
             <TabsContent value="trades">
-              <Card className="dashboard-card">
-                <CardHeader className="pb-2">
+              <Card className="dashboard-card relative overflow-hidden">
+                <GlowingEffect 
+                  disabled={false} 
+                  glow={true}
+                  variant="default"
+                  spread={40}
+                  proximity={100}
+                  borderWidth={2}
+                />
+                <CardHeader className="pb-2 relative">
                   <div className="flex justify-between items-center">
                     <CardTitle className="text-lg font-medium">Recent Trades</CardTitle>
                     <div className="text-sm text-muted-foreground flex items-center">
@@ -208,17 +258,29 @@ const Index = () => {
                     </div>
                   </div>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="relative">
                   <TradeHistoryTable trades={tradeHistory} />
                 </CardContent>
               </Card>
             </TabsContent>
             
-            <TabsContent value="settings">
-              <BotConfigPanel 
-                config={botConfig}
-                onSave={handleSaveConfig}
-              />
+            <TabsContent value="settings" className="relative">
+              <div className="relative overflow-hidden">
+                <BotConfigPanel 
+                  config={botConfig}
+                  onSave={handleSaveConfig}
+                />
+                <div className="absolute inset-0 pointer-events-none">
+                  <GlowingEffect 
+                    disabled={false} 
+                    glow={true}
+                    variant="purple"
+                    spread={40}
+                    proximity={100}
+                    borderWidth={2}
+                  />
+                </div>
+              </div>
             </TabsContent>
           </Tabs>
         </div>
