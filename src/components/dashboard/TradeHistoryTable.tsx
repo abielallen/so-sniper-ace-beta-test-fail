@@ -1,4 +1,5 @@
 
+import React from "react";
 import { TradeHistory } from "@/types/sniperBot";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";

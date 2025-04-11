@@ -1,7 +1,7 @@
 
+import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { BarChart4, Settings, PieChart, RefreshCcw, Power } from "lucide-react";
-import { useState } from "react";
 
 interface HeaderProps {
   activeBalance: number;

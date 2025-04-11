@@ -1,9 +1,9 @@
 
+import React, { useState, useEffect } from "react";
 import { TradeHistory } from "@/types/sniperBot";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ArrowUpRight, ArrowDownRight } from "lucide-react";
-import { useState, useEffect } from "react";
 
 interface CurrentTradeProps {
   activeTrade: TradeHistory | null;

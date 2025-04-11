@@ -1,4 +1,5 @@
 
+import React from "react";
 import { PerformanceStats } from "@/types/sniperBot";
 import { StatusCard } from "./StatusCard";
 import { AreaChart, LineChart, ArrowUpRight, Target, Clock, CreditCard, Wallet } from "lucide-react";
