@@ -1,9 +1,8 @@
-
+import React, { useState } from "react";
 import { cn } from "@/lib/utils";
 import { TokenDetection } from "@/types/sniperBot";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Check, XCircle, AlertTriangle } from "lucide-react";
-import { useState } from "react";
+import { Loader2, Check, XCircle, AlertTriangle, Eye } from "lucide-react";
 
 interface TokenDetectionTableProps {
   detections: TokenDetection[];
@@ -123,9 +122,4 @@ export const TokenDetectionTable = ({ detections }: TokenDetectionTableProps) =>
       </table>
     </div>
   );
-};
-
-// Adding missing component
-const Eye = ({ className }: { className?: string }) => {
-  return <div className={className}>👁️</div>;
 };

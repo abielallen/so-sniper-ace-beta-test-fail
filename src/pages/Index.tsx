@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Header } from "@/components/dashboard/Header";
 import { StatusCard } from "@/components/dashboard/StatusCard";
@@ -12,13 +11,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/components/ui/use-toast";
 import { 
-  ArrowTrendingUp, 
+  TrendingUp, 
   Laptop, 
   Loader2, 
   Search, 
   ShieldCheck, 
   Clock, 
-  LineChart 
+  LineChart,
+  Settings
 } from "lucide-react";
 
 // Import mock data for UI demo
@@ -225,15 +225,6 @@ const Index = () => {
       </div>
     </div>
   );
-};
-
-// Missing components
-const ArrowTrendingUp = ({ className }: { className?: string }) => {
-  return <div className={className}>📈</div>;
-};
-
-const Settings = ({ className }: { className?: string }) => {
-  return <div className={className}>⚙️</div>;
 };
 
 export default Index;
