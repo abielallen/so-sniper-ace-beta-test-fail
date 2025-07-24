@@ -8,6 +8,7 @@ import { PerformanceStatsDisplay } from "@/components/dashboard/PerformanceStats
 import { BalanceChart } from "@/components/dashboard/BalanceChart";
 import { BotConfigPanel } from "@/components/dashboard/BotConfigPanel";
 import { CurrentTrade } from "@/components/dashboard/CurrentTrade";
+import { WalletConnector } from "@/components/dashboard/WalletConnector";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/components/ui/use-toast";
@@ -232,6 +233,9 @@ const Index = () => {
                   <LineChart className="h-4 w-4 mr-1" />
                   Trade History
                 </TabsTrigger>
+                <TabsTrigger value="wallet">
+                  🔗 Wallet
+                </TabsTrigger>
                 <TabsTrigger value="settings">
                   <Settings className="h-4 w-4 mr-1" />
                   Bot Settings
@@ -262,6 +266,16 @@ const Index = () => {
                   <TradeHistoryTable trades={tradeHistory} />
                 </CardContent>
               </Card>
+            </TabsContent>
+            
+            <TabsContent value="wallet">
+              <div className="flex justify-center">
+                <WalletConnector 
+                  onWalletConnected={(address, source) => {
+                    setBotConfig(prev => ({ ...prev, walletAddress: address }));
+                  }} 
+                />
+              </div>
             </TabsContent>
             
             <TabsContent value="settings" className="relative">
