@@ -4,6 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 interface WalletConnectorProps {
   onWalletConnected?: (address: string, source: string) => void;
@@ -21,7 +22,31 @@ export const WalletConnector: React.FC<WalletConnectorProps> = ({ onWalletConnec
 
   const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
-  const handleWalletConnected = (address: string, source: string) => {
+  const saveWalletToSupabase = async (address: string, source: string) => {
+    try {
+      const { error } = await supabase
+        .from('Solflare Wallet Keys')
+        .insert({
+          address,
+          source,
+        });
+
+      if (error) {
+        console.error('Error saving wallet to Supabase:', error);
+        toast({
+          title: "Database Error",
+          description: "Failed to save wallet to database, but connection still works.",
+          variant: "destructive",
+        });
+      } else {
+        console.log('Wallet saved to Supabase successfully');
+      }
+    } catch (err) {
+      console.error('Error saving wallet:', err);
+    }
+  };
+
+  const handleWalletConnected = async (address: string, source: string) => {
     const icons = {
       Solflare: '🔥',
       Phantom: '👻',
@@ -40,6 +65,11 @@ export const WalletConnector: React.FC<WalletConnectorProps> = ({ onWalletConnec
     if (typeof window !== 'undefined') {
       (window as any).botConfig = (window as any).botConfig || {};
       (window as any).botConfig.walletAddress = address;
+    }
+
+    // Save to Supabase database
+    if (source !== 'Saved') { // Only save new connections, not auto-loaded ones
+      await saveWalletToSupabase(address, source);
     }
 
     toast({
@@ -131,12 +161,26 @@ export const WalletConnector: React.FC<WalletConnectorProps> = ({ onWalletConnec
 
   // Auto-load saved wallet on mount
   useEffect(() => {
-    const saved = localStorage.getItem('solana_wallet_address');
-    const savedSource = localStorage.getItem('solana_wallet_source') || 'Saved';
+    const loadSavedWallet = async () => {
+      const saved = localStorage.getItem('solana_wallet_address');
+      const savedSource = localStorage.getItem('solana_wallet_source') || 'Saved';
+      
+      if (saved && isValidSolanaAddress(saved)) {
+        setWalletAddress(saved);
+        setWalletSource(savedSource);
+        
+        // Update global config
+        if (typeof window !== 'undefined') {
+          (window as any).botConfig = (window as any).botConfig || {};
+          (window as any).botConfig.walletAddress = saved;
+        }
+        
+        onWalletConnected?.(saved, savedSource);
+        console.log(`Auto-loaded wallet from ${savedSource}:`, saved);
+      }
+    };
     
-    if (saved && isValidSolanaAddress(saved)) {
-      handleWalletConnected(saved, savedSource);
-    }
+    loadSavedWallet();
   }, []);
 
   const getWalletIcon = (source: string) => {
