@@ -9,6 +9,9 @@ import { BalanceChart } from "@/components/dashboard/BalanceChart";
 import { BotConfigPanel } from "@/components/dashboard/BotConfigPanel";
 import { CurrentTrade } from "@/components/dashboard/CurrentTrade";
 import { WalletConnector } from "@/components/dashboard/WalletConnector";
+import { TelegramBinding } from "@/components/dashboard/TelegramBinding";
+import { BalanceDisplay } from "@/components/dashboard/BalanceDisplay";
+import { WithdrawPanel } from "@/components/dashboard/WithdrawPanel";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/components/ui/use-toast";
@@ -44,6 +47,9 @@ const Index = () => {
   const [activeTrade, setActiveTrade] = useState<TradeHistory | null>(
     mockTradeHistory.find(trade => trade.status === "active") || null
   );
+  const [connectedWallet, setConnectedWallet] = useState<string>('');
+  const [solBalance, setSolBalance] = useState<number>(0);
+  const [usdcBalance, setUsdcBalance] = useState<number>(0);
   
   const toggleBot = () => {
     const newState = !botActive;
@@ -269,12 +275,22 @@ const Index = () => {
             </TabsContent>
             
             <TabsContent value="wallet">
-              <div className="flex justify-center">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
                 <WalletConnector 
                   onWalletConnected={(address, source) => {
+                    setConnectedWallet(address);
                     setBotConfig(prev => ({ ...prev, walletAddress: address }));
                   }} 
                 />
+                <TelegramBinding walletAddress={connectedWallet} />
+                <div className="space-y-4">
+                  <BalanceDisplay 
+                    walletAddress={connectedWallet}
+                  />
+                  <WithdrawPanel 
+                    walletAddress={connectedWallet}
+                  />
+                </div>
               </div>
             </TabsContent>
             
