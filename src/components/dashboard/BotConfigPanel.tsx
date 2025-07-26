@@ -1,5 +1,5 @@
 
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { BotConfig } from "@/types/sniperBot";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

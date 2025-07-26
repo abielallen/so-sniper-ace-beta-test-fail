@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -24,10 +24,11 @@ export const WithdrawPanel: React.FC<WithdrawPanelProps> = ({
   const { toast } = useToast();
 
   // Load balance data
-  React.useEffect(() => {
+  useEffect(() => {
     if (walletAddress) {
       loadBalance();
-      setupRealtimeUpdates();
+      const cleanup = setupRealtimeUpdates();
+      return cleanup;
     }
   }, [walletAddress]);
 
