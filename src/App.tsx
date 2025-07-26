@@ -9,7 +9,14 @@ import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import { GlowingEffectDemo } from "./components/ui/glowing-effect-demo";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
 
 const App: React.FC = () => {
   return (
