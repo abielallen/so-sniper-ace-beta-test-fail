@@ -58,22 +58,29 @@ export const BalanceDisplay: React.FC<BalanceDisplayProps> = ({ walletAddress })
     
     setSyncing(true);
     try {
-      // Connect to Solana mainnet
-      const connection = new Connection('https://api.mainnet-beta.solana.com');
+      // Use a free RPC endpoint that doesn't require authentication
+      const connection = new Connection('https://solana-api.projectserum.com');
       const publicKey = new PublicKey(walletAddress);
       
       // Get SOL balance
       const solBalanceResponse = await connection.getBalance(publicKey);
       const realSolBalance = solBalanceResponse / LAMPORTS_PER_SOL;
       
-      // Update database with real balance
-      await supabase
+      // Update database with real balance using upsert with proper conflict resolution
+      const { error } = await supabase
         .from('balances')
         .upsert({
           wallet_address: walletAddress,
           balance: realSolBalance,
           usdc_balance: 0, // USDC balance would require additional token account lookup
+        }, {
+          onConflict: 'wallet_address'
         });
+
+      if (error) {
+        console.error('Supabase error:', error);
+        throw error;
+      }
       
       setSolBalance(realSolBalance);
       
@@ -85,7 +92,7 @@ export const BalanceDisplay: React.FC<BalanceDisplayProps> = ({ walletAddress })
       console.error('Failed to sync wallet balance:', error);
       toast({
         title: "Sync Failed",
-        description: "Could not sync with your Solflare wallet",
+        description: "Could not sync with your Solflare wallet. Please try again.",
         variant: "destructive",
       });
     } finally {
