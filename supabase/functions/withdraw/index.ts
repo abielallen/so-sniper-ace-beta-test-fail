@@ -15,6 +15,29 @@ serve(async (req) => {
   }
 
   try {
+    // Get auth header
+    const authHeader = req.headers.get('Authorization')?.replace('Bearer ', '');
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Unauthorized - No token provided' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
+      );
+    }
+
+    // Initialize Supabase client
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
+    // Verify the JWT token
+    const { data: { user }, error: authError } = await supabase.auth.getUser(authHeader);
+    if (authError || !user) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Unauthorized - Invalid token' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
+      );
+    }
+
     const { walletAddress, amount, token, mobileNumber } = await req.json();
 
     // Validate input
@@ -25,21 +48,17 @@ serve(async (req) => {
       );
     }
 
-    // Initialize Supabase client
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
-
-    // Get user balance and telegram_chat_id
+    // Get user balance and telegram_chat_id - ensure user owns this wallet
     const { data: balanceData, error: balanceError } = await supabase
       .from('balances')
-      .select('balance, usdc_balance, telegram_chat_id')
+      .select('balance, usdc_balance, telegram_chat_id, user_id')
       .eq('wallet_address', walletAddress)
+      .eq('user_id', user.id)
       .single();
 
     if (balanceError || !balanceData) {
       return new Response(
-        JSON.stringify({ success: false, error: 'Balance not found' }),
+        JSON.stringify({ success: false, error: 'Wallet not found or not owned by user' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -82,6 +101,7 @@ serve(async (req) => {
     const { error: withdrawalError } = await supabase
       .from('withdrawals')
       .insert({
+        user_id: user.id,
         wallet_address: walletAddress,
         amount,
         token,

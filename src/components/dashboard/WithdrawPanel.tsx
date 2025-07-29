@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 
 interface WithdrawPanelProps {
   walletAddress?: string;
@@ -22,6 +23,7 @@ export const WithdrawPanel: React.FC<WithdrawPanelProps> = ({
   const [solBalance, setSolBalance] = useState<number>(0);
   const [usdcBalance, setUsdcBalance] = useState<number>(0);
   const { toast } = useToast();
+  const { user, session } = useAuth();
 
   // Load balance data
   useEffect(() => {
@@ -33,13 +35,14 @@ export const WithdrawPanel: React.FC<WithdrawPanelProps> = ({
   }, [walletAddress]);
 
   const loadBalance = async () => {
-    if (!walletAddress) return;
+    if (!walletAddress || !user) return;
 
     try {
       const { data, error } = await supabase
         .from('balances')
         .select('balance, usdc_balance')
         .eq('wallet_address', walletAddress)
+        .eq('user_id', user.id)
         .single();
 
       if (data) {
@@ -116,13 +119,16 @@ export const WithdrawPanel: React.FC<WithdrawPanelProps> = ({
         .eq('wallet_address', walletAddress)
         .single();
 
-      // Call the withdraw edge function
+      // Call the withdraw edge function with auth header
       const { data, error } = await supabase.functions.invoke('withdraw', {
         body: {
           walletAddress,
           amount: Number(amount),
           token,
           mobileNumber: balanceData?.mobile_number
+        },
+        headers: {
+          Authorization: `Bearer ${session?.access_token}`
         }
       });
 

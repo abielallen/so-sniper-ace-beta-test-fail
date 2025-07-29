@@ -1,5 +1,8 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useAuth } from "@/hooks/useAuth";
+import { useNavigate } from "react-router-dom";
+import { Button } from "@/components/ui/button";
 import { Header } from "@/components/dashboard/Header";
 import { StatusCard } from "@/components/dashboard/StatusCard";
 import { TokenDetectionTable } from "@/components/dashboard/TokenDetectionTable";
@@ -40,6 +43,8 @@ import {
 import { BotConfig, TradeHistory } from "@/types/sniperBot";
 
 const Index = () => {
+  const { user, loading, signOut, isAuthenticated } = useAuth();
+  const navigate = useNavigate();
   const { toast } = useToast();
   const [botActive, setBotActive] = useState(false);
   const [botConfig, setBotConfig] = useState<BotConfig>(mockBotConfig);
@@ -51,6 +56,17 @@ const Index = () => {
   const [connectedWallet, setConnectedWallet] = useState<string>('');
   const [solBalance, setSolBalance] = useState<number>(0);
   const [usdcBalance, setUsdcBalance] = useState<number>(0);
+
+  useEffect(() => {
+    if (!loading && !isAuthenticated) {
+      navigate('/auth');
+    }
+  }, [loading, isAuthenticated, navigate]);
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate('/auth');
+  };
   
   const toggleBot = () => {
     const newState = !botActive;
@@ -127,15 +143,38 @@ const Index = () => {
       variant: "default",
     });
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+          <p>Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return null; // Will redirect to auth page
+  }
   
   return (
     <div className="min-h-screen bg-solana-darkblue">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4">
-        <Header 
-          activeBalance={mockPerformanceStats.activeBalance} 
-          botActive={botActive} 
-          onToggleBot={toggleBot} 
-        />
+        <div className="flex justify-between items-center mb-6">
+          <Header 
+            activeBalance={mockPerformanceStats.activeBalance} 
+            botActive={botActive} 
+            onToggleBot={toggleBot} 
+          />
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground">Welcome, {user?.email}</span>
+            <Button variant="outline" size="sm" onClick={handleSignOut}>
+              Sign Out
+            </Button>
+          </div>
+        </div>
         
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
           <div className="lg:col-span-2">

@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { Connection, PublicKey, LAMPORTS_PER_SOL } from '@solana/web3.js';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/useAuth';
 
 interface BalanceDisplayProps {
   walletAddress?: string;
@@ -15,6 +16,7 @@ export const BalanceDisplay: React.FC<BalanceDisplayProps> = ({ walletAddress })
   const [loading, setLoading] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const { toast } = useToast();
+  const { user } = useAuth();
 
   useEffect(() => {
     if (walletAddress) {
@@ -24,7 +26,7 @@ export const BalanceDisplay: React.FC<BalanceDisplayProps> = ({ walletAddress })
   }, [walletAddress]);
 
   const loadBalance = async () => {
-    if (!walletAddress) return;
+    if (!walletAddress || !user) return;
 
     setLoading(true);
     try {
@@ -32,22 +34,25 @@ export const BalanceDisplay: React.FC<BalanceDisplayProps> = ({ walletAddress })
         .from('balances')
         .select('balance, usdc_balance')
         .eq('wallet_address', walletAddress)
+        .eq('user_id', user.id)
         .single();
 
       if (data) {
         setSolBalance(Number(data.balance) || 0);
         setUsdcBalance(Number(data.usdc_balance) || 0);
+      } else {
+        // Initialize balance record
+        await supabase
+          .from('balances')
+          .upsert({
+            wallet_address: walletAddress,
+            user_id: user.id,
+            balance: 0,
+            usdc_balance: 0,
+          });
       }
     } catch (err) {
-      console.log('No balance record found, initializing...');
-      // Initialize balance record
-      await supabase
-        .from('balances')
-        .upsert({
-          wallet_address: walletAddress,
-          balance: 0,
-          usdc_balance: 0,
-        });
+      console.log('Error loading balance:', err);
     } finally {
       setLoading(false);
     }
