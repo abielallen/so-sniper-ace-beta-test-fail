@@ -1,15 +1,18 @@
 
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { SecureWalletManager } from "./SecureWalletManager";
 import { BarChart4, Settings, PieChart, RefreshCcw, Power } from "lucide-react";
 
 interface HeaderProps {
   activeBalance: number;
   botActive: boolean;
   onToggleBot: () => void;
+  connectedWallet?: string;
 }
 
-export const Header = ({ activeBalance, botActive, onToggleBot }: HeaderProps) => {
+export const Header = ({ activeBalance, botActive, onToggleBot, connectedWallet }: HeaderProps) => {
   const [isRefreshing, setIsRefreshing] = useState(false);
   
   const handleRefresh = () => {
@@ -48,13 +51,20 @@ export const Header = ({ activeBalance, botActive, onToggleBot }: HeaderProps) =
           Refresh
         </Button>
         
-        <Button 
-          size="sm" 
-          variant="outline"
-        >
-          <Settings className="h-4 w-4 mr-1" />
-          Settings
-        </Button>
+        <Dialog>
+          <DialogTrigger asChild>
+            <Button size="sm" variant="outline">
+              <Settings className="h-4 w-4 mr-1" />
+              Settings
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Security Settings</DialogTitle>
+            </DialogHeader>
+            <SecureWalletManager walletAddress={connectedWallet} />
+          </DialogContent>
+        </Dialog>
         
         <Button 
           size="sm"

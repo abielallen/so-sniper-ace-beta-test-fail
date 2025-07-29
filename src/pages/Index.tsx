@@ -14,7 +14,7 @@ import { CurrentTrade } from "@/components/dashboard/CurrentTrade";
 import { WalletConnector } from "@/components/dashboard/WalletConnector";
 import { TelegramBinding } from "@/components/dashboard/TelegramBinding";
 import { BalanceDisplay } from "@/components/dashboard/BalanceDisplay";
-import { WalletSecurityManager } from "@/components/dashboard/WalletSecurityManager";
+
 import { WithdrawPanel } from "@/components/dashboard/WithdrawPanel";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -166,7 +166,8 @@ const Index = () => {
           <Header 
             activeBalance={mockPerformanceStats.activeBalance} 
             botActive={botActive} 
-            onToggleBot={toggleBot} 
+            onToggleBot={toggleBot}
+            connectedWallet={connectedWallet}
           />
           <div className="flex items-center gap-2">
             <span className="text-sm text-muted-foreground">Welcome, {user?.email}</span>
@@ -315,7 +316,7 @@ const Index = () => {
             </TabsContent>
             
             <TabsContent value="wallet">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-7xl mx-auto">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-7xl mx-auto">
                 <WalletConnector 
                   onWalletConnected={(address, source) => {
                     setConnectedWallet(address);
@@ -331,9 +332,6 @@ const Index = () => {
                     walletAddress={connectedWallet}
                   />
                 </div>
-                <WalletSecurityManager 
-                  walletAddress={connectedWallet}
-                />
               </div>
             </TabsContent>
             
