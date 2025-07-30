@@ -67,57 +67,62 @@ export const TokenDetectionTable = ({ detections }: TokenDetectionTableProps) =>
           </tr>
         </thead>
         <tbody>
-          {detections.map((detection) => (
-            <React.Fragment key={detection.id}>
-              <tr 
-                className={cn(
-                  "hover:bg-card/60 cursor-pointer",
-                  expanded === detection.id && "bg-card/60"
-                )}
-                onClick={() => setExpanded(prev => prev === detection.id ? null : detection.id)}
-              >
-                <td className="p-2">
-                  <div className="font-medium">{detection.tokenName}</div>
-                  <div className="text-xs text-muted-foreground">{detection.tokenSymbol}</div>
-                </td>
-                <td className="p-2">
-                  ${detection.initialLiquidity.toLocaleString()}
-                </td>
-                <td className="p-2">
-                  <div className="flex items-center">
-                    <div 
-                      className={cn(
-                        "w-10 h-1.5 rounded-full bg-gradient-to-r mr-2",
-                        detection.safetyScore >= 80 ? "from-green-500 to-green-300" :
-                        detection.safetyScore >= 60 ? "from-yellow-500 to-yellow-300" :
-                        "from-red-500 to-red-300"
-                      )}
-                    ></div>
-                    <span>{detection.safetyScore}</span>
-                  </div>
-                </td>
-                <td className="p-2 text-muted-foreground">
-                  {formatTimeDiff(detection.timestamp)}
-                </td>
-                <td className="p-2">
-                  {getStatusBadge(detection.status)}
-                </td>
-                <td className="p-2 text-right">
-                  {getStatusIcon(detection)}
-                </td>
-              </tr>
-              {expanded === detection.id && detection.status === "rejected" && (
-                <tr className="bg-card/30">
-                  <td colSpan={6} className="p-3 text-sm text-red-400">
+          {detections.map((detection) => {
+            const isExpanded = expanded === detection.id;
+            const shouldShowRejectRow = isExpanded && detection.status === "rejected";
+            
+            return (
+              <React.Fragment key={detection.id}>
+                <tr 
+                  className={cn(
+                    "hover:bg-card/60 cursor-pointer",
+                    isExpanded && "bg-card/60"
+                  )}
+                  onClick={() => setExpanded(prev => prev === detection.id ? null : detection.id)}
+                >
+                  <td className="p-2">
+                    <div className="font-medium">{detection.tokenName}</div>
+                    <div className="text-xs text-muted-foreground">{detection.tokenSymbol}</div>
+                  </td>
+                  <td className="p-2">
+                    ${detection.initialLiquidity.toLocaleString()}
+                  </td>
+                  <td className="p-2">
                     <div className="flex items-center">
-                      <AlertTriangle className="h-4 w-4 mr-2" />
-                      Rejected: {detection.rejectReason}
+                      <div 
+                        className={cn(
+                          "w-10 h-1.5 rounded-full bg-gradient-to-r mr-2",
+                          detection.safetyScore >= 80 ? "from-green-500 to-green-300" :
+                          detection.safetyScore >= 60 ? "from-yellow-500 to-yellow-300" :
+                          "from-red-500 to-red-300"
+                        )}
+                      ></div>
+                      <span>{detection.safetyScore}</span>
                     </div>
                   </td>
+                  <td className="p-2 text-muted-foreground">
+                    {formatTimeDiff(detection.timestamp)}
+                  </td>
+                  <td className="p-2">
+                    {getStatusBadge(detection.status)}
+                  </td>
+                  <td className="p-2 text-right">
+                    {getStatusIcon(detection)}
+                  </td>
                 </tr>
-              )}
-            </React.Fragment>
-          ))}
+                {shouldShowRejectRow && (
+                  <tr className="bg-card/30">
+                    <td colSpan={6} className="p-3 text-sm text-red-400">
+                      <div className="flex items-center">
+                        <AlertTriangle className="h-4 w-4 mr-2" />
+                        Rejected: {detection.rejectReason}
+                      </div>
+                    </td>
+                  </tr>
+                )}
+              </React.Fragment>
+            );
+          })}
         </tbody>
       </table>
     </div>

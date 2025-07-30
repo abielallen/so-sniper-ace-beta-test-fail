@@ -63,23 +63,22 @@ export const BalanceDisplay: React.FC<BalanceDisplayProps> = ({ walletAddress })
     
     setSyncing(true);
     try {
-      // Use a free RPC endpoint that doesn't require authentication
-      const connection = new Connection('https://solana-api.projectserum.com');
+      // Use a reliable Solana RPC endpoint
+      const connection = new Connection('https://api.mainnet-beta.solana.com');
       const publicKey = new PublicKey(walletAddress);
       
       // Get SOL balance
       const solBalanceResponse = await connection.getBalance(publicKey);
       const realSolBalance = solBalanceResponse / LAMPORTS_PER_SOL;
       
-      // Update database with real balance using upsert with proper conflict resolution
+      // Update database with real balance using upsert with proper user context
       const { error } = await supabase
         .from('balances')
         .upsert({
           wallet_address: walletAddress,
+          user_id: user.id,
           balance: realSolBalance,
           usdc_balance: 0, // USDC balance would require additional token account lookup
-        }, {
-          onConflict: 'wallet_address'
         });
 
       if (error) {

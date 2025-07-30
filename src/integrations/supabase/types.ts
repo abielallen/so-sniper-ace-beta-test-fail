@@ -14,6 +14,45 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_notifications: {
+        Row: {
+          created_at: string
+          email_notifications: boolean
+          id: string
+          phone_number: string | null
+          security_alerts: boolean
+          sms_notifications: boolean
+          telegram_notifications: boolean
+          updated_at: string
+          user_id: string
+          withdrawal_alerts: boolean
+        }
+        Insert: {
+          created_at?: string
+          email_notifications?: boolean
+          id?: string
+          phone_number?: string | null
+          security_alerts?: boolean
+          sms_notifications?: boolean
+          telegram_notifications?: boolean
+          updated_at?: string
+          user_id: string
+          withdrawal_alerts?: boolean
+        }
+        Update: {
+          created_at?: string
+          email_notifications?: boolean
+          id?: string
+          phone_number?: string | null
+          security_alerts?: boolean
+          sms_notifications?: boolean
+          telegram_notifications?: boolean
+          updated_at?: string
+          user_id?: string
+          withdrawal_alerts?: boolean
+        }
+        Relationships: []
+      }
       balances: {
         Row: {
           balance: number
@@ -65,6 +104,42 @@ export type Database = {
           connected_at?: string
           id?: string
           source?: string
+        }
+        Relationships: []
+      }
+      wallet_bindings: {
+        Row: {
+          bound_at: string
+          created_at: string
+          id: string
+          is_active: boolean
+          last_verified_at: string | null
+          security_level: string
+          updated_at: string
+          user_id: string
+          wallet_address: string
+        }
+        Insert: {
+          bound_at?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          last_verified_at?: string | null
+          security_level?: string
+          updated_at?: string
+          user_id: string
+          wallet_address: string
+        }
+        Update: {
+          bound_at?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          last_verified_at?: string | null
+          security_level?: string
+          updated_at?: string
+          user_id?: string
+          wallet_address?: string
         }
         Relationships: []
       }

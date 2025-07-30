@@ -74,20 +74,33 @@ export const SecureWalletManager = ({ walletAddress }: SecureWalletManagerProps)
   const [showSecurityLog, setShowSecurityLog] = useState(false);
 
   useEffect(() => {
-    if (walletAddress) {
+    if (walletAddress && user) {
       loadSecuritySettings();
     }
-  }, [walletAddress]);
+  }, [walletAddress, user]);
 
   const loadSecuritySettings = async () => {
+    if (!walletAddress || !user) return;
+    
     try {
       // Check if wallet is bound
-      const { data: binding } = await supabase
+      const { data: binding, error } = await supabase
         .from('wallet_bindings')
         .select('*')
         .eq('wallet_address', walletAddress)
-        .eq('user_id', user?.id)
-        .single();
+        .eq('user_id', user.id)
+        .eq('is_active', true)
+        .maybeSingle();
+      
+      if (error && error.code !== 'PGRST116') {
+        console.error('Error loading wallet binding:', error);
+        toast({
+          title: "Error",
+          description: "Failed to load wallet security settings",
+          variant: "destructive",
+        });
+        return;
+      }
       
       if (binding) {
         setIsWalletBound(true);
@@ -99,13 +112,40 @@ export const SecureWalletManager = ({ walletAddress }: SecureWalletManagerProps)
           )
         );
       }
+
+      // Load admin notification settings
+      const { data: adminData, error: adminError } = await supabase
+        .from('admin_notifications')
+        .select('phone_number')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (adminError && adminError.code !== 'PGRST116') {
+        console.error('Error loading admin settings:', adminError);
+      } else if (adminData?.phone_number) {
+        setAdminPhone(adminData.phone_number);
+        setSecurityFeatures(prev => 
+          prev.map(feature => 
+            feature.id === 'admin-notifications' 
+              ? { ...feature, enabled: true, status: 'active' }
+              : feature
+          )
+        );
+      }
     } catch (error) {
       console.error('Error loading security settings:', error);
     }
   };
 
   const bindWallet = async () => {
-    if (!walletAddress || !user) return;
+    if (!walletAddress || !user) {
+      toast({
+        title: "Error",
+        description: "Please connect a wallet and ensure you're logged in",
+        variant: "destructive",
+      });
+      return;
+    }
 
     try {
       const { error } = await supabase
@@ -113,10 +153,20 @@ export const SecureWalletManager = ({ walletAddress }: SecureWalletManagerProps)
         .insert({
           wallet_address: walletAddress,
           user_id: user.id,
-          bound_at: new Date().toISOString()
+          bound_at: new Date().toISOString(),
+          is_active: true,
+          security_level: 'enhanced'
         });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error binding wallet:', error);
+        toast({
+          title: "Binding Failed",
+          description: `Failed to bind wallet securely: ${error.message}`,
+          variant: "destructive",
+        });
+        return;
+      }
 
       setIsWalletBound(true);
       setSecurityFeatures(prev => 
@@ -135,25 +185,42 @@ export const SecureWalletManager = ({ walletAddress }: SecureWalletManagerProps)
       console.error('Error binding wallet:', error);
       toast({
         title: "Binding Failed",
-        description: "Failed to bind wallet. Please try again.",
+        description: "An unexpected error occurred while binding wallet",
         variant: "destructive",
       });
     }
   };
 
   const updateAdminNotifications = async () => {
-    if (!adminPhone.trim()) return;
+    if (!adminPhone.trim() || !user) {
+      toast({
+        title: "Error",
+        description: "Please enter a valid phone number and ensure you're logged in",
+        variant: "destructive",
+      });
+      return;
+    }
 
     try {
       const { error } = await supabase
         .from('admin_notifications')
         .upsert({
-          user_id: user?.id,
+          user_id: user.id,
           phone_number: adminPhone,
-          enabled: true
+          security_alerts: true,
+          withdrawal_alerts: true,
+          updated_at: new Date().toISOString()
         });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error updating admin notifications:', error);
+        toast({
+          title: "Update Failed",
+          description: `Failed to enable admin notifications: ${error.message}`,
+          variant: "destructive",
+        });
+        return;
+      }
 
       setSecurityFeatures(prev => 
         prev.map(feature => 
@@ -171,7 +238,7 @@ export const SecureWalletManager = ({ walletAddress }: SecureWalletManagerProps)
       console.error('Error updating admin notifications:', error);
       toast({
         title: "Update Failed",
-        description: "Failed to enable admin notifications",
+        description: "An unexpected error occurred while updating settings",
         variant: "destructive",
       });
     }
