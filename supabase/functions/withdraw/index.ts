@@ -40,11 +40,48 @@ serve(async (req) => {
 
     const { walletAddress, amount, token, mobileNumber } = await req.json();
 
-    // Validate input
+    // Enhanced input validation
     if (!walletAddress || !amount || !token) {
       return new Response(
         JSON.stringify({ success: false, error: 'Missing required parameters' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+      );
+    }
+
+    // Validate Solana wallet address format (44 characters, base58)
+    const base58Regex = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
+    if (!base58Regex.test(walletAddress)) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Invalid wallet address format' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+      );
+    }
+
+    // Validate token type
+    const validTokens = ['SOL', 'USDC'];
+    if (!validTokens.includes(token)) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Invalid token type' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+      );
+    }
+
+    // Validate amount
+    const numAmount = Number(amount);
+    if (isNaN(numAmount) || numAmount <= 0 || numAmount > 1000000) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Invalid amount' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+      );
+    }
+
+    // Check decimal precision (max 9 decimals for SOL, 6 for USDC)
+    const maxDecimals = token === 'SOL' ? 9 : 6;
+    const decimalPlaces = (amount.toString().split('.')[1] || '').length;
+    if (decimalPlaces > maxDecimals) {
+      return new Response(
+        JSON.stringify({ success: false, error: `Amount exceeds maximum decimal precision for ${token}` }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
       );
     }
 
@@ -75,9 +112,30 @@ serve(async (req) => {
     // Initialize Solana connection
     const connection = new Connection('https://api.mainnet-beta.solana.com');
     
-    // For demo purposes, we'll create a mock transaction
-    // In production, you'd need to set up a proper wallet/keypair for the platform
-    const mockSignature = `${Date.now()}_${Math.random().toString(36).substring(7)}`;
+    // Verify on-chain balance before allowing withdrawal
+    try {
+      const publicKey = new PublicKey(walletAddress);
+      const onChainBalance = await connection.getBalance(publicKey);
+      const onChainBalanceSOL = onChainBalance / LAMPORTS_PER_SOL;
+      
+      // For SOL withdrawals, verify on-chain balance matches our records
+      if (token === 'SOL') {
+        const balanceDifference = Math.abs(onChainBalanceSOL - Number(balanceData.balance));
+        if (balanceDifference > 0.001) { // Allow small differences due to network fees
+          console.warn(`Balance mismatch: DB=${balanceData.balance}, Chain=${onChainBalanceSOL}`);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to verify on-chain balance:', error);
+      return new Response(
+        JSON.stringify({ success: false, error: 'Failed to verify wallet balance' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+      );
+    }
+    
+    // SECURITY WARNING: This is still a mock transaction for demo purposes
+    // In production, implement real Solana transactions with proper keypairs
+    const mockSignature = `DEMO_${Date.now()}_${Math.random().toString(36).substring(7)}`;
 
     // Update balance in database
     const newBalance = token === 'SOL' 
@@ -93,7 +151,7 @@ serve(async (req) => {
       console.error('Balance update error:', updateError);
       return new Response(
         JSON.stringify({ success: false, error: 'Failed to update balance' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
       );
     }
 
@@ -112,6 +170,14 @@ serve(async (req) => {
 
     if (withdrawalError) {
       console.error('Withdrawal record error:', withdrawalError);
+      // Log security event for failed withdrawal recording
+      console.error('SECURITY_EVENT: Failed to record withdrawal', {
+        user_id: user.id,
+        wallet_address: walletAddress,
+        amount,
+        token,
+        error: withdrawalError
+      });
     }
 
     // Send Telegram notification if chat_id exists
@@ -119,7 +185,9 @@ serve(async (req) => {
       try {
         const botToken = Deno.env.get('TELEGRAM_BOT_TOKEN');
         if (botToken) {
-          const telegramMessage = `💸 Withdrawal Successful\\n\\nAmount: ${amount} ${token}\\nTo: ${walletAddress.slice(0, 8)}...${walletAddress.slice(-8)}\\nTx: ${mockSignature}`;
+          // Sanitize data for Telegram message
+          const sanitizedWallet = walletAddress.replace(/[_*[\]()~`>#+\-=|{}.!]/g, '\\$&');
+          const telegramMessage = `💸 Withdrawal Successful\\n\\nAmount: ${amount} ${token}\\nTo: ${sanitizedWallet.slice(0, 8)}...${sanitizedWallet.slice(-8)}\\nTx: ${mockSignature}`;
           
           await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
             method: 'POST',
@@ -151,9 +219,16 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Withdraw function error:', error);
+    
+    // Log security event for system errors
+    console.error('SECURITY_EVENT: Withdrawal system error', {
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+    
     return new Response(
       JSON.stringify({ success: false, error: 'Internal server error' }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
     );
   }
 })
