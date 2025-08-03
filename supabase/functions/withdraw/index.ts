@@ -38,6 +38,19 @@ serve(async (req) => {
       );
     }
 
+    // Get request metadata for security logging
+    const userAgent = req.headers.get('user-agent') || 'Unknown';
+    const forwardedFor = req.headers.get('x-forwarded-for') || 'Unknown';
+    
+    // Log security event for withdrawal attempt
+    await supabase.from('security_events').insert({
+      user_id: user.id,
+      event_type: 'withdrawal_attempt',
+      event_data: { timestamp: new Date().toISOString() },
+      ip_address: forwardedFor,
+      user_agent: userAgent
+    });
+
     const { walletAddress, amount, token, mobileNumber } = await req.json();
 
     // Enhanced input validation
@@ -48,11 +61,11 @@ serve(async (req) => {
       );
     }
 
-    // Validate Solana wallet address format (44 characters, base58)
+    // Validate Solana wallet address format (Base58 encoding, 32-44 chars)
     const base58Regex = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
     if (!base58Regex.test(walletAddress)) {
       return new Response(
-        JSON.stringify({ success: false, error: 'Invalid wallet address format' }),
+        JSON.stringify({ success: false, error: 'Invalid Solana wallet address format' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
       );
     }
@@ -61,16 +74,34 @@ serve(async (req) => {
     const validTokens = ['SOL', 'USDC'];
     if (!validTokens.includes(token)) {
       return new Response(
-        JSON.stringify({ success: false, error: 'Invalid token type' }),
+        JSON.stringify({ success: false, error: 'Invalid token type. Only SOL and USDC are supported.' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
       );
     }
 
-    // Validate amount
+    // Enhanced amount validation
     const numAmount = Number(amount);
-    if (isNaN(numAmount) || numAmount <= 0 || numAmount > 1000000) {
+    if (isNaN(numAmount) || numAmount <= 0) {
       return new Response(
         JSON.stringify({ success: false, error: 'Invalid amount' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+      );
+    }
+
+    // Minimum withdrawal amounts (anti-dust)
+    const minimumWithdrawal = token === 'SOL' ? 0.01 : 1;
+    if (numAmount < minimumWithdrawal) {
+      return new Response(
+        JSON.stringify({ success: false, error: `Minimum withdrawal: ${minimumWithdrawal} ${token}` }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+      );
+    }
+
+    // Maximum withdrawal amounts
+    const maximumWithdrawal = token === 'SOL' ? 1000 : 50000;
+    if (numAmount > maximumWithdrawal) {
+      return new Response(
+        JSON.stringify({ success: false, error: `Maximum withdrawal: ${maximumWithdrawal} ${token}` }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
       );
     }
@@ -80,8 +111,44 @@ serve(async (req) => {
     const decimalPlaces = (amount.toString().split('.')[1] || '').length;
     if (decimalPlaces > maxDecimals) {
       return new Response(
-        JSON.stringify({ success: false, error: `Amount exceeds maximum decimal precision for ${token}` }),
+        JSON.stringify({ success: false, error: `${token} supports maximum ${maxDecimals} decimal places` }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+      );
+    }
+
+    // Validate mobile number if provided (E.164 format)
+    if (mobileNumber && typeof mobileNumber === 'string') {
+      const phoneRegex = /^\+[1-9]\d{1,14}$/;
+      if (!phoneRegex.test(mobileNumber)) {
+        return new Response(
+          JSON.stringify({ success: false, error: 'Invalid mobile number format. Use E.164 format (+1234567890)' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+        );
+      }
+    }
+
+    // Check withdrawal limits using the database function
+    const { data: limitsCheck } = await supabase.rpc('check_withdrawal_limits', {
+      p_user_id: user.id,
+      p_amount: numAmount
+    });
+
+    if (!limitsCheck?.allowed) {
+      await supabase.from('security_events').insert({
+        user_id: user.id,
+        event_type: 'withdrawal_limit_exceeded',
+        event_data: limitsCheck,
+        ip_address: forwardedFor,
+        user_agent: userAgent
+      });
+
+      return new Response(
+        JSON.stringify({ 
+          success: false,
+          error: 'Withdrawal limit exceeded',
+          limits: limitsCheck
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 429 }
       );
     }
 
@@ -94,18 +161,36 @@ serve(async (req) => {
       .single();
 
     if (balanceError || !balanceData) {
+      await supabase.from('security_events').insert({
+        user_id: user.id,
+        event_type: 'withdrawal_unauthorized_wallet',
+        event_data: { wallet_address: walletAddress, error: balanceError?.message },
+        ip_address: forwardedFor,
+        user_agent: userAgent
+      });
       return new Response(
         JSON.stringify({ success: false, error: 'Wallet not found or not owned by user' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 404 }
       );
     }
 
     // Check sufficient balance
     const currentBalance = token === 'SOL' ? Number(balanceData.balance) : Number(balanceData.usdc_balance);
-    if (amount > currentBalance) {
+    if (numAmount > currentBalance) {
+      await supabase.from('security_events').insert({
+        user_id: user.id,
+        event_type: 'insufficient_balance_attempt',
+        event_data: { 
+          requested: numAmount, 
+          available: currentBalance, 
+          token: token 
+        },
+        ip_address: forwardedFor,
+        user_agent: userAgent
+      });
       return new Response(
         JSON.stringify({ success: false, error: 'Insufficient balance' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
       );
     }
 
@@ -127,20 +212,58 @@ serve(async (req) => {
       }
     } catch (error) {
       console.error('Failed to verify on-chain balance:', error);
+      await supabase.from('security_events').insert({
+        user_id: user.id,
+        event_type: 'withdrawal_balance_verification_failed',
+        event_data: { error: error.message },
+        ip_address: forwardedFor,
+        user_agent: userAgent
+      });
       return new Response(
         JSON.stringify({ success: false, error: 'Failed to verify wallet balance' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
       );
     }
     
-    // SECURITY WARNING: This is still a mock transaction for demo purposes
-    // In production, implement real Solana transactions with proper keypairs
-    const mockSignature = `DEMO_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+    // CRITICAL SECURITY WARNING: This is still using mock transactions
+    // In production, implement real Solana blockchain transactions with:
+    // 1. Secure private key management using Supabase secrets
+    // 2. Real transaction creation and signing
+    // 3. Network confirmation waiting
+    // 4. Proper error handling for failed transactions
+    
+    console.log('WARNING: Using mock transaction - implement real blockchain transactions for production');
+    
+    // For demo purposes, generate a mock signature
+    // REMOVE THIS IN PRODUCTION
+    const mockSignature = `demo_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+
+    // Simulate a 5% chance of transaction failure for testing
+    const shouldFail = Math.random() < 0.05;
+    if (shouldFail) {
+      await supabase.from('security_events').insert({
+        user_id: user.id,
+        event_type: 'withdrawal_transaction_failed',
+        event_data: { 
+          amount: numAmount,
+          token: token,
+          wallet: walletAddress,
+          reason: 'Demo transaction failure simulation'
+        },
+        ip_address: forwardedFor,
+        user_agent: userAgent
+      });
+
+      return new Response(
+        JSON.stringify({ success: false, error: 'Transaction failed on blockchain' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+      );
+    }
 
     // Update balance in database
     const newBalance = token === 'SOL' 
-      ? { balance: currentBalance - amount }
-      : { usdc_balance: currentBalance - amount };
+      ? { balance: currentBalance - numAmount }
+      : { usdc_balance: currentBalance - numAmount };
 
     const { error: updateError } = await supabase
       .from('balances')
@@ -149,6 +272,13 @@ serve(async (req) => {
 
     if (updateError) {
       console.error('Balance update error:', updateError);
+      await supabase.from('security_events').insert({
+        user_id: user.id,
+        event_type: 'withdrawal_balance_update_failed',
+        event_data: { error: updateError.message },
+        ip_address: forwardedFor,
+        user_agent: userAgent
+      });
       return new Response(
         JSON.stringify({ success: false, error: 'Failed to update balance' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
@@ -161,22 +291,23 @@ serve(async (req) => {
       .insert({
         user_id: user.id,
         wallet_address: walletAddress,
-        amount,
+        amount: numAmount,
         token,
         tx_signature: mockSignature,
         mobile_number: mobileNumber,
-        status: 'completed'
+        status: 'completed',
+        attempt_count: 1,
+        last_attempt_at: new Date().toISOString()
       });
 
     if (withdrawalError) {
       console.error('Withdrawal record error:', withdrawalError);
-      // Log security event for failed withdrawal recording
-      console.error('SECURITY_EVENT: Failed to record withdrawal', {
+      await supabase.from('security_events').insert({
         user_id: user.id,
-        wallet_address: walletAddress,
-        amount,
-        token,
-        error: withdrawalError
+        event_type: 'withdrawal_record_failed',
+        event_data: { error: withdrawalError.message },
+        ip_address: forwardedFor,
+        user_agent: userAgent
       });
     }
 
@@ -187,7 +318,7 @@ serve(async (req) => {
         if (botToken) {
           // Sanitize data for Telegram message
           const sanitizedWallet = walletAddress.replace(/[_*[\]()~`>#+\-=|{}.!]/g, '\\$&');
-          const telegramMessage = `💸 Withdrawal Successful\\n\\nAmount: ${amount} ${token}\\nTo: ${sanitizedWallet.slice(0, 8)}...${sanitizedWallet.slice(-8)}\\nTx: ${mockSignature}`;
+          const telegramMessage = `💸 Withdrawal Successful\\n\\nAmount: ${numAmount} ${token}\\nTo: ${sanitizedWallet.slice(0, 8)}...${sanitizedWallet.slice(-8)}\\nTx: ${mockSignature}`;
           
           await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
             method: 'POST',
@@ -204,9 +335,24 @@ serve(async (req) => {
       }
     }
 
+    // Log successful withdrawal
+    await supabase.from('security_events').insert({
+      user_id: user.id,
+      event_type: 'withdrawal_completed',
+      event_data: { 
+        amount: numAmount,
+        token: token,
+        wallet: walletAddress,
+        tx_signature: mockSignature,
+        new_balance: currentBalance - numAmount
+      },
+      ip_address: forwardedFor,
+      user_agent: userAgent
+    });
+
     const newBalanceAmount = token === 'SOL' 
-      ? currentBalance - amount
-      : (token === 'SOL' ? currentBalance : currentBalance - amount);
+      ? currentBalance - numAmount
+      : (token === 'SOL' ? currentBalance : currentBalance - numAmount);
 
     return new Response(
       JSON.stringify({ 

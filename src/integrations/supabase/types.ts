@@ -61,7 +61,7 @@ export type Database = {
           telegram_chat_id: string | null
           updated_at: string
           usdc_balance: number
-          user_id: string | null
+          user_id: string
           wallet_address: string
         }
         Insert: {
@@ -71,7 +71,7 @@ export type Database = {
           telegram_chat_id?: string | null
           updated_at?: string
           usdc_balance?: number
-          user_id?: string | null
+          user_id: string
           wallet_address: string
         }
         Update: {
@@ -81,8 +81,38 @@ export type Database = {
           telegram_chat_id?: string | null
           updated_at?: string
           usdc_balance?: number
-          user_id?: string | null
+          user_id?: string
           wallet_address?: string
+        }
+        Relationships: []
+      }
+      security_events: {
+        Row: {
+          created_at: string
+          event_data: Json | null
+          event_type: string
+          id: string
+          ip_address: string | null
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          event_data?: Json | null
+          event_type: string
+          id?: string
+          ip_address?: string | null
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          event_data?: Json | null
+          event_type?: string
+          id?: string
+          ip_address?: string | null
+          user_agent?: string | null
+          user_id?: string
         }
         Relationships: []
       }
@@ -149,7 +179,7 @@ export type Database = {
           created_at: string | null
           id: string
           signature: string
-          user_id: string | null
+          user_id: string
           wallet_address: string
         }
         Insert: {
@@ -157,7 +187,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           signature: string
-          user_id?: string | null
+          user_id: string
           wallet_address: string
         }
         Update: {
@@ -165,43 +195,88 @@ export type Database = {
           created_at?: string | null
           id?: string
           signature?: string
-          user_id?: string | null
+          user_id?: string
           wallet_address?: string
+        }
+        Relationships: []
+      }
+      withdrawal_limits: {
+        Row: {
+          created_at: string
+          daily_limit: number
+          hourly_limit: number
+          id: string
+          last_withdrawal_at: string | null
+          updated_at: string
+          user_id: string
+          withdrawal_count_day: number
+          withdrawal_count_hour: number
+        }
+        Insert: {
+          created_at?: string
+          daily_limit?: number
+          hourly_limit?: number
+          id?: string
+          last_withdrawal_at?: string | null
+          updated_at?: string
+          user_id: string
+          withdrawal_count_day?: number
+          withdrawal_count_hour?: number
+        }
+        Update: {
+          created_at?: string
+          daily_limit?: number
+          hourly_limit?: number
+          id?: string
+          last_withdrawal_at?: string | null
+          updated_at?: string
+          user_id?: string
+          withdrawal_count_day?: number
+          withdrawal_count_hour?: number
         }
         Relationships: []
       }
       withdrawals: {
         Row: {
           amount: number
+          attempt_count: number
           created_at: string
+          failure_reason: string | null
           id: string
+          last_attempt_at: string | null
           mobile_number: string | null
           status: string
           token: string
           tx_signature: string
-          user_id: string | null
+          user_id: string
           wallet_address: string
         }
         Insert: {
           amount: number
+          attempt_count?: number
           created_at?: string
+          failure_reason?: string | null
           id?: string
+          last_attempt_at?: string | null
           mobile_number?: string | null
           status?: string
           token: string
           tx_signature: string
-          user_id?: string | null
+          user_id: string
           wallet_address: string
         }
         Update: {
           amount?: number
+          attempt_count?: number
           created_at?: string
+          failure_reason?: string | null
           id?: string
+          last_attempt_at?: string | null
           mobile_number?: string | null
           status?: string
           token?: string
           tx_signature?: string
-          user_id?: string | null
+          user_id?: string
           wallet_address?: string
         }
         Relationships: []
@@ -211,7 +286,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      check_withdrawal_limits: {
+        Args: { p_user_id: string; p_amount: number }
+        Returns: Json
+      }
     }
     Enums: {
       [_ in never]: never
